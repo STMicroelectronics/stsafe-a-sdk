@@ -6,9 +6,9 @@
  ******************************************************************************
  *           			COPYRIGHT 2022 STMicroelectronics
  *
- * This software is licensed under terms that can be found in the LICENSE file in
- * the root directory of this software component.
- * If no LICENSE file comes with this software, it is provided AS-IS.
+ * This software is licensed under terms that can be found in the LICENSE file
+ * in the root directory of this software component. If no LICENSE file comes
+ * with this software, it is provided AS-IS.
  *
  ******************************************************************************
  */
@@ -19,13 +19,18 @@
 
 /* Defines -------------------------------------------------------------------*/
 
-const stsafea_aes_128_host_keys_t host_keys = {
+/* Host keys used to open the host session (stored in platform secure storage at runtime) */
+const stse_aes_key_t host_mac_key = {
+	.type = STSE_AES_128_KT,
+	.usage = STSE_AES_KEY_USAGE_MAC,
+	.key = {0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF}
+};
 
-    .host_mac_key = {0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
-                     0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF},
-
-    .host_cipher_key = {0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF,
-                        0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF}};
+const stse_aes_key_t host_cipher_key = {
+	.type = STSE_AES_128_KT,
+	.usage = STSE_AES_KEY_USAGE_CIPHER,
+	.key = {0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF, 0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF}
+};
 
 /**
  * @brief  Main program entry point - STSAFE-A120 AES-128 CMAC wrapped key provisioning
@@ -40,148 +45,177 @@ const stsafea_aes_128_host_keys_t host_keys = {
  *         Recommended over plaintext provisioning for production deployments.
  * @retval Not applicable (infinite loop on success or error)
  */
-int main(void) {
-    stse_ReturnCode_t stse_ret = STSE_API_INVALID_PARAMETER;
-    stse_Handler_t stse_handler;
+int main(void)
+{
+	stse_return_code_t stse_ret = STSE_API_INVALID_PARAMETER;
+	stse_handle_t stse_handle;
 
-    PLAT_UI16 symmetric_key_slot = 0;
-    PLAT_UI8 message[16] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
-    PLAT_UI8 MAC[4] = {0};
-    uint8_t mac_verification = 0;
+	PLAT_UI16 symmetric_key_slot = 0;
+	PLAT_UI8 message[16] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+	PLAT_UI8 MAC[4] = {0};
+	uint8_t mac_verification = 0;
 
-    /* Initialize Terminal */
-    apps_terminal_init(115200);
+	/* Initialize Terminal */
+	apps_terminal_init(115200);
 
-    /* - Print Example instruction on terminal */
-    printf("----------------------------------------------------------------------------------------------------------------");
-    printf("\n\r-              STSAFE-A120 Symmetric key cryptography and key provisioning wrapped example                     -");
-    printf("\n\r-                                              AES 128 CMAC                                                    -");
-    printf("\n\r----------------------------------------------------------------------------------------------------------------");
-    printf("\n\r-                                                                                                              -");
-    printf("\n\r- description :                                                                                                -");
-    printf("\n\r- This examples illustrates how to provision symmetric keys in STSAFE-A120 secure element                      -");
-    printf("\n\r- and perform AES cryptographic operations                                                                     -");
-    printf("\n\r-                                                                                                              -");
-    printf("\n\r- Note : Device with accessible symmetric key (i.e. STSAFE-A120 SPL05) is required to run this example         -");
-    printf("\n\r-        Please run \"STSAFE-A120 Configure Symmetric key slot provisioning control fields example\"           -");
-    printf("\n\r-        to activate symmetric key slot provisioning on SPL05 devices                                          -");
-    printf("\n\r----------------------------------------------------------------------------------------------------------------");
+	/* - Print Example instruction on terminal */
+	printf("-----------------------------------------------------------------------------------------------------");
+	printf("\n\r-              STSAFE-A120 Symmetric key cryptography and key provisioning wrapped example           -");
+	printf("\n\r-                                              AES 128 CMAC                                         -");
+	printf("\n\r-----------------------------------------------------------------------------------------------------");
+	printf("\n\r-                                                                                                   -");
+	printf("\n\r- description :                                                                                     -");
+	printf("\n\r- This examples illustrates how to provision symmetric keys in STSAFE-A120 secure element            -");
+	printf("\n\r- and perform AES cryptographic operations                                                          -");
+	printf("\n\r-                                                                                                   -");
+	printf("\n\r- Note : Device with accessible symmetric key (i.e. STSAFE-A120 SPL05) is required to run this example -");
+	printf("\n\r-        Please run \"STSAFE-A120 Configure Symmetric key slot provisioning control fields example\"   -");
+	printf("\n\r-        to activate symmetric key slot provisioning on SPL05 devices                                -");
+	printf("\n\r-----------------------------------------------------------------------------------------------------");
 
-    /* ## Initialize STSAFE-A1xx device handler */
-    stse_ret = stse_set_default_handler_value(&stse_handler);
-    if (stse_ret != STSE_OK) {
-        printf(PRINT_RED "\n\r ## stse_set_default_handler_value ERROR : 0x%04X\n\r", stse_ret);
-        apps_process_error(stse_ret);
-    }
+	/* ## Initialize STSAFE-A1xx device handler */
+	stse_ret = stse_set_default_handler_value(&stse_handle);
+	if (stse_ret != STSE_OK)
+	{
+		printf(PRINT_RED "\n\r ## stse_set_default_handler_value ERROR : 0x%04X\n\r", stse_ret);
+		apps_process_error(stse_ret);
+	}
 
-    stse_handler.device_type = STSAFE_A120;
-    stse_handler.io.busID = 1;
-    stse_handler.io.BusSpeed = 400;
+	stse_handle.device_type = STSAFE_A120;
+	stse_handle.io.bus_type = STSE_BUS_TYPE_I2C;
+	stse_handle.io.devaddr = 0x20;
+	stse_handle.io.bus_speed = 400;
 
-    printf("\n\r - Initialize target STSAFE-A120");
-    stse_ret = stse_init(&stse_handler);
-    if (stse_ret != STSE_OK) {
-        printf(PRINT_RED "\n\r ## stse_init ERROR : 0x%04X\n\r", stse_ret);
-        apps_process_error(stse_ret);
-    }
+#ifdef STSE_CONF_USE_STATIC_PERSONALIZATION_INFORMATIONS
+	stse_handle.perso_info = stsafe_a120_spl05_perso_info;
+#endif
 
-    printf("\n\n\r");
-    /* - Display key table information in serial terminal */
-    apps_print_symmetric_key_table_info(&stse_handler);
+	printf("\n\r - Initialize target STSAFE-A120");
+	stse_ret = stse_init(&stse_handle, NULL);
+	if (stse_ret != STSE_OK)
+	{
+		printf(PRINT_RED "\n\r ## stse_init ERROR : 0x%04X\n\r", stse_ret);
+		apps_process_error(stse_ret);
+	}
 
-    printf(PRINT_BOLD PRINT_ITALIC "\n\n\r==> Enter the slot number to write : ");
-    apps_terminal_read_unsigned_integer(&symmetric_key_slot);
+	printf("\n\n\r");
+	/* - Display key table information in serial terminal */
+	apps_print_symmetric_key_table_info(&stse_handle);
 
-    /* - Define the key value and key informations */
-    PLAT_UI8 pAES_CMAC_Key[] = {0x5A, 0x5A, 0x5A, 0x5A, 0x5A, 0x5A, 0x5A, 0x5A, 0x5A, 0x5A, 0x5A, 0x5A, 0x5A, 0x5A, 0x5A, 0x5A};
+	printf(PRINT_BOLD PRINT_ITALIC "\n\n\r==> Enter the slot number to write : ");
+	apps_terminal_read_unsigned_integer(&symmetric_key_slot);
 
-    stsafea_generic_key_information_t aes_cmac_128_key_info = {0};
-    aes_cmac_128_key_info.info_length = STSAFEA_KEY_INFO_LENGTH_CMAC;
-    aes_cmac_128_key_info.lock_indicator = 0;
-    aes_cmac_128_key_info.slot_number = (PLAT_UI8)symmetric_key_slot;
-    aes_cmac_128_key_info.type = STSAFEA_SYMMETRIC_KEY_TYPE_AES_128;
-    aes_cmac_128_key_info.mode_of_operation = STSAFEA_KEY_OPERATION_MODE_CMAC;
-    aes_cmac_128_key_info.usage.mac_generation = 1;
-    aes_cmac_128_key_info.usage.mac_verification = 1;
-    aes_cmac_128_key_info.CMAC.min_MAC_length = 2;
+	/* - Define the key value and key informations */
+	PLAT_UI8 p_aes_cmac_key[] = {
+		0x5A, 0x5A, 0x5A, 0x5A, 0x5A, 0x5A, 0x5A, 0x5A,
+		0x5A, 0x5A, 0x5A, 0x5A, 0x5A, 0x5A, 0x5A, 0x5A
+	};
 
-    /* - Write test symmetric key in the target slot */
-    printf(PRINT_RESET "\n\n\r - Write symmetric key in slot %d", aes_cmac_128_key_info.slot_number);
-    stse_ret = stse_write_symmetric_key_wrapped(
-        &stse_handler,           /* Pointer to target STSAFE device */
-        pAES_CMAC_Key,           /* Buffer of the key to provision */
-        &aes_cmac_128_key_info,  /* Key info to set in the target slot*/
-        STSE_ECC_KT_NIST_P_256); /* Key Encryption Key (KEK) ECC Key type */
+	stsafea_generic_key_information_t aes_cmac_128_key_info = {0};
+	aes_cmac_128_key_info.info_length = STSAFEA_KEY_INFO_LENGTH_CMAC;
+	aes_cmac_128_key_info.lock_indicator = 0;
+	aes_cmac_128_key_info.slot_number = (PLAT_UI8)symmetric_key_slot;
+	aes_cmac_128_key_info.type = STSAFEA_SYMMETRIC_KEY_TYPE_AES_128;
+	aes_cmac_128_key_info.mode_of_operation = STSAFEA_KEY_OPERATION_MODE_CMAC;
+	aes_cmac_128_key_info.usage.mac_generation = 1;
+	aes_cmac_128_key_info.usage.mac_verification = 1;
+	aes_cmac_128_key_info.cmac.min_mac_length = 2;
 
-    if (stse_ret != STSE_OK) {
-        printf(PRINT_RED "\n\n\r - stse_write_symmetric_key : ERROR 0x%04x", stse_ret);
-        if (stse_ret == STSE_COMMAND_NOT_AUTHORIZED) {
-            printf("\n\n\r - Control fields for selected symmetric key slot might not be configured");
-        }
-        apps_process_error(stse_ret);
-    } else {
-        printf(PRINT_GREEN "\n\n\r - Populated key : \n\r");
-        apps_print_hex_buffer(pAES_CMAC_Key, STSE_AES_128_KEY_SIZE);
-    }
+	/* - Write test symmetric key in the target slot */
+	printf(PRINT_RESET "\n\n\r - Write symmetric key in slot %d", aes_cmac_128_key_info.slot_number);
+	stse_ret = stse_write_symmetric_key_wrapped(
+		&stse_handle,             /* Pointer to target STSAFE device */
+		p_aes_cmac_key,           /* Buffer of the key to provision */
+		&aes_cmac_128_key_info,   /* Key info to set in the target slot */
+		STSE_ECC_KT_NIST_P_256    /* Key Encryption Key (KEK) ECC Key type */
+	);
 
-    stse_session_t host_session_handler;
-    stsafea_session_clear_context(&host_session_handler);
+	if (stse_ret != STSE_OK)
+	{
+		printf(PRINT_RED "\n\n\r - stse_write_symmetric_key : ERROR 0x%04x", stse_ret);
+		if (stse_ret == STSE_COMMAND_NOT_AUTHORIZED)
+		{
+			printf("\n\n\r - Control fields for selected symmetric key slot might not be configured");
+		}
+		apps_process_error(stse_ret);
+	}
+	else
+	{
+		printf(PRINT_GREEN "\n\n\r - Populated key : \n\r");
+		apps_print_hex_buffer(p_aes_cmac_key, STSE_AES_128_KEY_SIZE);
+	}
 
-    printf(PRINT_RESET "\n\n\r - stse_open_host_session");
-    stse_ret = stsafea_open_host_session(
-        &stse_handler,                         /* Target STSafe Handler */
-        &host_session_handler,                 /* pointer to session handler */
-        (uint8_t *)host_keys.host_mac_key,     /* pointer to Host MAC  key to be used by the session */
-        (uint8_t *)host_keys.host_cipher_key); /* pointer to Host cipher key to be used by the session */
+	stse_session_t host_session_handler;
+	stsafea_session_clear_context(&host_session_handler);
 
-    if (stse_ret != STSE_OK) {
-        printf(PRINT_RED " ERROR : 0x%04X", stse_ret);
-        apps_process_error(stse_ret);
-    }
+	printf(PRINT_RESET "\n\n\r - stse_open_host_session");
+	stse_ret = apps_open_host_session(
+		&stse_handle,             /* Pointer to STSE handle */
+		&host_session_handler,    /* Pointer to host session */
+		&host_mac_key,            /* Pointer to host MAC key */
+		&host_cipher_key          /* Pointer to host cipher key */
+	);
 
-    printf("\n\n\r - Plaintext Message : \n\r");
-    apps_print_hex_buffer(message, 16);
+	if (stse_ret != STSE_OK)
+	{
+		printf(PRINT_RED " ERROR : 0x%04X", stse_ret);
+		apps_process_error(stse_ret);
+	}
 
-    /* - Compute MAC on message */
-    stse_ret = stse_cmac_hmac_compute(
-        &stse_handler,      /* Pointer to target STSAFE device */
-        symmetric_key_slot, /* Symmetric key slot number for aes-cmac */
-        message,            /* Pointer to MAC input message buffer */
-        16,                 /* MAC input message buffer length*/
-        MAC,                /* Pointer to MAC buffer */
-        4);                 /* Expected MAC length */
+	printf("\n\n\r - Plaintext Message : \n\r");
+	apps_print_hex_buffer(message, 16);
 
-    if (stse_ret != STSE_OK) {
-        printf(PRINT_RED "\n\r - stse_aes_cmac_compute : ERROR 0x%04x", stse_ret);
-        apps_process_error(stse_ret);
-    } else {
-        printf("\n\n\r - Encrypted Message MAC : \n\r");
-        apps_print_hex_buffer(MAC, 4);
-    }
+	/* - Compute MAC on message */
+	stse_ret = stsafea_cmac_hmac_compute(
+		&stse_handle,        /* Pointer to target STSAFE device */
+		symmetric_key_slot,  /* Symmetric key slot number for aes-cmac */
+		message,             /* Pointer to MAC input message buffer */
+		16,                  /* MAC input message buffer length */
+		MAC,                 /* Pointer to MAC buffer */
+		4                    /* Expected MAC length */
+	);
 
-    /* - Verify encrypted message MAC */
-    stse_ret = stse_cmac_hmac_verify(
-        &stse_handler,      /* Pointer to target STSAFE device */
-        symmetric_key_slot, /* Symmetric key slot number for aes-cmac */
-        MAC,                /* Pointer to MAC buffer */
-        4,                  /* Expected MAC length */
-        message,            /* Pointer to MAC input message buffer */
-        16,                 /* MAC input message buffer length*/
-        &mac_verification); /* Verification byte */
+	if (stse_ret != STSE_OK)
+	{
+		printf(PRINT_RED "\n\r - stse_aes_cmac_compute : ERROR 0x%04x", stse_ret);
+		apps_process_error(stse_ret);
+	}
+	else
+	{
+		printf("\n\n\r - Encrypted Message MAC : \n\r");
+		apps_print_hex_buffer(MAC, 4);
+	}
 
-    if (stse_ret != STSE_OK) {
-        printf(PRINT_RED "\n\r - stse_cmac_hmac_verify : ERROR 0x%04x", stse_ret);
-    } else if (mac_verification == 0) {
-        printf(PRINT_RED "\n\n\r - Encrypted Message MAC verification : FAIL");
-    } else {
-        printf(PRINT_GREEN "\n\n\r - Encrypted Message MAC verification : PASS");
-    }
+	/* - Verify encrypted message MAC */
+	stse_ret = stsafea_cmac_hmac_verify(
+		&stse_handle,        /* Pointer to target STSAFE device */
+		symmetric_key_slot,  /* Symmetric key slot number for aes-cmac */
+		MAC,                 /* Pointer to MAC buffer */
+		4,                   /* Expected MAC length */
+		message,             /* Pointer to MAC input message buffer */
+		16,                  /* MAC input message buffer length */
+		&mac_verification    /* Verification byte */
+	);
 
-    stsafea_close_host_session(&host_session_handler);
+	if (stse_ret != STSE_OK)
+	{
+		printf(PRINT_RED "\n\r - stsafea_cmac_hmac_verify : ERROR 0x%04x", stse_ret);
+	}
+	else if (mac_verification == 0)
+	{
+		printf(PRINT_RED "\n\n\r - Encrypted Message MAC verification : FAIL");
+	}
+	else
+	{
+		printf(PRINT_GREEN "\n\n\r - Encrypted Message MAC verification : PASS");
+	}
 
-    while (1) {
-        // infinite loop
-    }
+	stsafea_close_host_session(&host_session_handler);
 
-    return 0;
+	while (1)
+	{
+		// infinite loop
+	}
+
+	return 0;
 }

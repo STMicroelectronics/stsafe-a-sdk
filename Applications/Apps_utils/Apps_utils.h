@@ -105,40 +105,40 @@ uint8_t apps_terminal_read_unsigned_integer(uint16_t *integer);
 
 /**
  * @brief  Print data partition record table information
- * @param  pSTSE Pointer to STSE handler structure
+ * @param  p_stse Pointer to STSE handler structure
  */
-void apps_print_data_partition_record_table(stse_Handler_t *pSTSE);
+void apps_print_data_partition_record_table(stse_handle_t *p_stse);
 
 /**
  * @brief  Print formatted symmetric key table information
- * @param  pSTSE Pointer to STSE handler structure
+ * @param  p_stse Pointer to STSE handler structure
  */
-void apps_print_symmetric_key_table_info(stse_Handler_t *pSTSE);
+void apps_print_symmetric_key_table_info(stse_handle_t *p_stse);
 
 /**
  * @brief  Print symmetric key table provisioning control fields
- * @param  pSTSE Pointer to STSE handler structure
+ * @param  p_stse Pointer to STSE handler structure
  */
-void apps_print_symmetric_key_table_provisioning_control_fields(stse_Handler_t *pSTSE);
+void apps_print_symmetric_key_table_provisioning_control_fields(stse_handle_t *p_stse);
 
 /**
  * @brief  Print formatted asymmetric (ECC) key table information
- * @param  pSTSE Pointer to STSE handler structure
+ * @param  p_stse Pointer to STSE handler structure
  */
-void apps_print_asymmetric_key_table_info(stse_Handler_t *pSTSE);
+void apps_print_asymmetric_key_table_info(stse_handle_t *p_stse);
 
 /**
  * @brief  Print host key provisioning control fields
- * @param  pSTSE Pointer to STSE handler structure
+ * @param  p_stse Pointer to STSE handler structure
  */
-void apps_print_host_key_provisioning_control_fields(stse_Handler_t *pSTSE);
+void apps_print_host_key_provisioning_control_fields(stse_handle_t *p_stse);
 
 /**
  * @brief  Print generic public key slot configuration flags
- * @param  pSTSE Pointer to STSE handler structure
+ * @param  p_stse Pointer to STSE handler structure
  * @param  slot_number Slot number to query
  */
-void apps_print_generic_public_key_slot_configuration_flags(stse_Handler_t *pSTSE, PLAT_UI8 slot_number);
+void apps_print_generic_public_key_slot_configuration_flags(stse_handle_t *p_stse, PLAT_UI8 slot_number);
 
 /**
  * @brief  Print buffer content in hexadecimal format
@@ -178,19 +178,19 @@ uint32_t apps_generate_random_number(void);
 
 /**
  * @brief  Fill buffer with random data
- * @param  pBuffer Pointer to buffer to fill
+ * @param  p_buffer Pointer to buffer to fill
  * @param  buffer_length Length of the buffer in bytes
  */
-void apps_randomize_buffer(uint8_t *pBuffer, uint16_t buffer_length);
+void apps_randomize_buffer(uint8_t *p_buffer, uint16_t buffer_length);
 
 /**
  * @brief  Compare two buffers byte by byte
- * @param  pBuffer1 Pointer to first buffer
- * @param  pBuffer2 Pointer to second buffer
+ * @param  p_buffer1 Pointer to first buffer
+ * @param  p_buffer2 Pointer to second buffer
  * @param  buffers_length Length of buffers to compare in bytes
  * @return 0 if buffers are identical, 1 if any byte differs
  */
-uint8_t apps_compare_buffers(uint8_t *pBuffer1, uint8_t *pBuffer2, uint16_t buffers_length);
+uint8_t apps_compare_buffers(uint8_t *p_buffer1, uint8_t *p_buffer2, uint16_t buffers_length);
 
 /**
  * @brief  Delay execution for specified milliseconds
@@ -207,5 +207,33 @@ void apps_process_error(uint32_t err);
 /**
  * @}
  */
+
+#ifdef STSE_CONF_USE_HOST_SESSION
+/** @defgroup Session_Functions Session Functions
+ * @brief Helpers for host session management
+ * @{
+ */
+
+/**
+ * @brief  Store host keys in platform secure storage and open a host session
+ * @details STSELib host sessions now reference keys by their index in the platform
+ *          secure storage. This helper stores the given MAC / cipher keys through
+ *          \ref stse_platform_store_aes_key and opens the session with
+ *          \ref stsafea_open_host_session_from_idx.
+ * @param  p_stse          Pointer to STSE handler structure
+ * @param  p_session       Pointer to the session handler to open
+ * @param  p_host_mac_key    Pointer to host MAC key
+ * @param  p_host_cipher_key Pointer to host cipher key
+ * @return STSE_OK on success ; stse_return_code_t error code otherwise
+ */
+stse_return_code_t apps_open_host_session(stse_handle_t *p_stse,
+                                          stse_session_t *p_session,
+                                          const stse_aes_key_t *p_host_mac_key,
+                                          const stse_aes_key_t *p_host_cipher_key);
+
+/**
+ * @}
+ */
+#endif /* STSE_CONF_USE_HOST_SESSION */
 
 #endif /*APPS_UTILS*/

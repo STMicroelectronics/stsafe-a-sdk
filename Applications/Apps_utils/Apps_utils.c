@@ -106,14 +106,14 @@ char *get_key_type_str(stse_ecc_key_type_t key_type) {
 /**
  * @brief  Convert curve ID to key type enumeration
  * @param  curve_id The ECC curve identifier to convert
- * @param  pKey_type Pointer to store the corresponding key type
+ * @param  p_key_type Pointer to store the corresponding key type
  * @return STSE_OK on success, STSE_UNEXPECTED_ERROR if curve ID not found
  * @note   Iterates through known curve IDs to find a match
  */
-stse_ReturnCode_t get_curve_id_key_type(stsafea_ecc_curve_id_t curve_id, stse_ecc_key_type_t *pKey_type) {
+stse_return_code_t get_curve_id_key_type(stsafea_ecc_curve_id_t curve_id, stse_ecc_key_type_t *p_key_type) {
     stse_ecc_key_type_t curve_id_index;
     int diff;
-    *pKey_type = STSE_ECC_KT_INVALID;
+    *p_key_type = STSE_ECC_KT_INVALID;
 
     /* Compare slot curve ID against each known curve ID to set the key type */
     for (curve_id_index = (stse_ecc_key_type_t)0; curve_id_index < STSE_ECC_KT_INVALID; curve_id_index++) {
@@ -121,12 +121,12 @@ stse_ReturnCode_t get_curve_id_key_type(stsafea_ecc_curve_id_t curve_id, stse_ec
                       (PLAT_UI8 *)&curve_id,
                       stse_ecc_info_table[curve_id_index].curve_id_total_length);
         if (diff == 0) {
-            *pKey_type = curve_id_index;
+            *p_key_type = curve_id_index;
             break;
         }
     }
-    /* If the comparison loop reach the end and pKey_type is always as initialized return error */
-    if ((curve_id_index + 1) >= STSE_ECC_KT_INVALID || *pKey_type == STSE_ECC_KT_INVALID) {
+    /* If the comparison loop reach the end and p_key_type is always as initialized return error */
+    if ((curve_id_index + 1) >= STSE_ECC_KT_INVALID || *p_key_type == STSE_ECC_KT_INVALID) {
         return STSE_UNEXPECTED_ERROR;
     }
 
@@ -135,7 +135,7 @@ stse_ReturnCode_t get_curve_id_key_type(stsafea_ecc_curve_id_t curve_id, stse_ec
 
 /**
  * @brief  Print formatted symmetric key table information
- * @param  pSTSE Pointer to STSE handler structure
+ * @param  p_stse Pointer to STSE handler structure
  * @note   Retrieves and displays all symmetric key slot information including:
  *         - Key type (AES-128/AES-256)
  *         - Mode of operation (CCM*;CMAC;ECB;GCM;HKDF;HMAC)
@@ -143,21 +143,21 @@ stse_ReturnCode_t get_curve_id_key_type(stsafea_ecc_curve_id_t curve_id, stse_ec
  *         - Parameters (MAC length, auth tag length, counter values, HKDF settings)
  */
 
-void apps_print_symmetric_key_table_info(stse_Handler_t *pSTSE) {
-    stse_ReturnCode_t ret;
+void apps_print_symmetric_key_table_info(stse_handle_t *p_stse) {
+    stse_return_code_t ret;
     PLAT_UI8 i;
     PLAT_UI8 slot_count;
 
-    ret = stse_get_symmetric_key_slots_count(pSTSE, &slot_count);
+    ret = stsafea_query_symmetric_key_slots_count(p_stse, &slot_count);
     if (ret != STSE_OK) {
-        printf("\n\n\r - stse_get_symmetric_key_slots_count : ERROR 0x%04x", ret);
+        printf("\n\n\r - stsafea_query_symmetric_key_slots_count : ERROR 0x%04x", ret);
         while (1)
             ;
     }
 
     stsafea_symmetric_key_slot_information_t symmetric_key_table[slot_count];
 
-    ret = stse_get_symmetric_key_table_info(pSTSE, slot_count, symmetric_key_table);
+    ret = stsafea_query_symmetric_key_table(p_stse, slot_count, symmetric_key_table);
     if (ret != STSE_OK) {
         printf("\n\n\r - stse_get_symmetric_key_slot_info : ERROR 0x%04x", ret);
         while (1)
@@ -192,9 +192,9 @@ void apps_print_symmetric_key_table_info(stse_Handler_t *pSTSE) {
             printf("     %s     |", (symmetric_key_table[i].key_usage.chunks_decryption == 0) ? "." : "x");
             /* Parameters for MAC */
             if (symmetric_key_table[i].mode_of_operation == STSAFEA_KEY_OPERATION_MODE_CMAC) {
-                printf("    0x%02X     |", symmetric_key_table[i].parameters.cmac.minimum_MAC_length);
+                printf("    0x%02X     |", symmetric_key_table[i].parameters.cmac.minimum_mac_length);
             } else if (symmetric_key_table[i].mode_of_operation == STSAFEA_KEY_OPERATION_MODE_HMAC) {
-                printf("    0x%02X     |", symmetric_key_table[i].parameters.hmac.minimum_MAC_length);
+                printf("    0x%02X     |", symmetric_key_table[i].parameters.hmac.minimum_mac_length);
             } else {
                 printf("      .      |");
             }
@@ -226,7 +226,7 @@ void apps_print_symmetric_key_table_info(stse_Handler_t *pSTSE) {
 
 /**
  * @brief  Print symmetric key table provisioning control fields
- * @param  pSTSE Pointer to STSE handler structure
+ * @param  p_stse Pointer to STSE handler structure
  * @note   Displays provisioning control field information for each symmetric key slot:
  *         - Change right
  *         - Derived key flag
@@ -235,15 +235,15 @@ void apps_print_symmetric_key_table_info(stse_Handler_t *pSTSE) {
  *         - Wrapped provisioning with authentication key
  *         - ECDHE provisioning with authentication key
  */
-void apps_print_symmetric_key_table_provisioning_control_fields(stse_Handler_t *pSTSE) {
-    stse_ReturnCode_t ret;
+void apps_print_symmetric_key_table_provisioning_control_fields(stse_handle_t *p_stse) {
+    stse_return_code_t ret;
     PLAT_UI8 i;
     PLAT_UI8 slot_count;
     stsafea_symmetric_key_slot_provisioning_ctrl_fields_t ctrl_fields;
 
-    ret = stse_get_symmetric_key_slots_count(pSTSE, &slot_count);
+    ret = stsafea_query_symmetric_key_slots_count(p_stse, &slot_count);
     if (ret != STSE_OK) {
-        printf("\n\n\r - stse_get_symmetric_key_slots_count : ERROR 0x%04x", ret);
+        printf("\n\n\r - stsafea_query_symmetric_key_slots_count : ERROR 0x%04x", ret);
         while (1)
             ;
     }
@@ -258,7 +258,7 @@ void apps_print_symmetric_key_table_provisioning_control_fields(stse_Handler_t *
     for (i = 0; i < slot_count; i++) {
         printf("\r\n   %02d  |", i);
 
-        ret = stse_get_symmetric_key_slot_provisioning_ctrl_fields(pSTSE, i, &ctrl_fields);
+        ret = stsafea_query_symmetric_key_slot_provisioning_ctrl_fields(p_stse, i, &ctrl_fields);
         if (ret != STSE_OK) {
             printf("\n\n\r - stse_query_symmetric_key_slot_provisioning_ctrl_fields : ERROR 0x%04x", ret);
             while (1)
@@ -275,17 +275,17 @@ void apps_print_symmetric_key_table_provisioning_control_fields(stse_Handler_t *
             printf("    %s    |", (ctrl_fields.wrapped_anonymous == 0) ? "." : "x");
         }
 
-        if (ctrl_fields.ECDHE_authentication_key != 0xFF) {
-            printf(" 0x%02X ", ctrl_fields.ECDHE_authentication_key);
+        if (ctrl_fields.ecdhe_authentication_key != 0xFF) {
+            printf(" 0x%02X ", ctrl_fields.ecdhe_authentication_key);
         } else {
-            printf("   %s   ", (ctrl_fields.ECDHE_anonymous == 0) ? "." : "x");
+            printf("   %s   ", (ctrl_fields.ecdhe_anonymous == 0) ? "." : "x");
         }
     }
 }
 
 /**
  * @brief  Print formatted asymmetric (ECC) key table information
- * @param  pSTSE Pointer to STSE handler structure
+ * @param  p_stse Pointer to STSE handler structure
  * @note   Retrieves and displays ECC key slot information including:
  *         - Global change right and usage limit
  *         - Per-slot: presence, key type (NIST, Brainpool, Curve25519, Ed25519)
@@ -293,24 +293,24 @@ void apps_print_symmetric_key_table_provisioning_control_fields(stse_Handler_t *
  *         - Generate key access control
  *         - Signature generation and key establishment capabilities
  */
-void apps_print_asymmetric_key_table_info(stse_Handler_t *pSTSE) {
-    stse_ReturnCode_t ret;
+void apps_print_asymmetric_key_table_info(stse_handle_t *p_stse) {
+    stse_return_code_t ret;
     PLAT_UI8 i;
     PLAT_UI8 slot_count;
     PLAT_UI16 global_usage_limit;
     stse_ecc_key_type_t key_type;
 
-    ret = stse_get_ecc_key_slots_count(pSTSE, &slot_count);
+    ret = stse_get_ecc_key_slots_count(p_stse, &slot_count);
     if (ret != STSE_OK) {
         printf("\n\n\r - stse_get_ecc_key_slots_count : ERROR 0x%04x", ret);
         while (1)
             ;
     }
 
-    stsafea_private_key_slot_information_t pPrivate_key_table_info[slot_count];
-    ret = stse_get_ecc_key_table_info(pSTSE, slot_count, &global_usage_limit, pPrivate_key_table_info);
+    stsafea_private_key_slot_information_t p_private_key_table_info[slot_count];
+    ret = stsafea_query_private_key_table(p_stse, slot_count, &global_usage_limit, p_private_key_table_info);
     if (ret != STSE_OK) {
-        printf("\n\n\r - stse_get_ecc_key_table_info : ERROR 0x%04x", ret);
+        printf("\n\n\r - stsafea_query_private_key_table : ERROR 0x%04x", ret);
         while (1)
             ;
     }
@@ -323,32 +323,32 @@ void apps_print_asymmetric_key_table_info(stse_Handler_t *pSTSE) {
     printf("\n\r ------+----------+------------+---------------+------------+---------+-------------------");
 
     for (i = 0; i < slot_count; i++) {
-        get_curve_id_key_type(pPrivate_key_table_info[i].curve_id, &key_type);
-        printf("\r\n  0x%02X |", pPrivate_key_table_info[i].slot_number);
-        printf("    %s     |", (pPrivate_key_table_info[i].presence_flag == 0) ? "." : "x");
-        printf(" %s |", (pPrivate_key_table_info[i].presence_flag == 0) ? "     .    " : get_key_type_str(key_type));
+        get_curve_id_key_type(p_private_key_table_info[i].curve_id, &key_type);
+        printf("\r\n  0x%02X |", p_private_key_table_info[i].slot_number);
+        printf("    %s     |", (p_private_key_table_info[i].presence_flag == 0) ? "." : "x");
+        printf(" %s |", (p_private_key_table_info[i].presence_flag == 0) ? "     .    " : get_key_type_str(key_type));
 #if defined(STSE_CONF_ECC_CURVE_25519) && defined(STSE_CONF_ECC_EDWARD_25519)
-        printf("   %s   |", (key_type != STSE_ECC_KT_CURVE25519 && key_type != STSE_ECC_KT_ED25519) ? "  None   " : (pPrivate_key_table_info[i].mode_of_operation.EdDSA_variant == 0) ? "  Pure   "
-                                                                                                                : (pPrivate_key_table_info[i].mode_of_operation.EdDSA_variant == 1)   ? "PreHashed"
+        printf("   %s   |", (key_type != STSE_ECC_KT_CURVE25519 && key_type != STSE_ECC_KT_ED25519) ? "  None   " : (p_private_key_table_info[i].mode_of_operation.eddsa_variant == 0) ? "  Pure   "
+                                                                                                                : (p_private_key_table_info[i].mode_of_operation.eddsa_variant == 1)   ? "PreHashed"
                                                                                                                                                                                       : "  ERROR  ");
 #elif defined(STSE_CONF_ECC_CURVE_25519)
-        printf("   %s   |", (key_type != STSE_ECC_KT_CURVE25519) ? "  None   " : (pPrivate_key_table_info[i].mode_of_operation.EdDSA_variant == 0) ? "  Pure   "
-                                                                             : (pPrivate_key_table_info[i].mode_of_operation.EdDSA_variant == 1)   ? "PreHashed"
+        printf("   %s   |", (key_type != STSE_ECC_KT_CURVE25519) ? "  None   " : (p_private_key_table_info[i].mode_of_operation.eddsa_variant == 0) ? "  Pure   "
+                                                                             : (p_private_key_table_info[i].mode_of_operation.eddsa_variant == 1)   ? "PreHashed"
                                                                                                                                                    : "  ERROR  ");
 #elif defined(STSE_CONF_ECC_EDWARD_25519)
-        printf("   %s   |", (key_type != STSE_ECC_KT_ED25519) ? "  None   " : (pPrivate_key_table_info[i].mode_of_operation.EdDSA_variant == 0) ? "  Pure   "
-                                                                          : (pPrivate_key_table_info[i].mode_of_operation.EdDSA_variant == 1)   ? "PreHashed"
+        printf("   %s   |", (key_type != STSE_ECC_KT_ED25519) ? "  None   " : (p_private_key_table_info[i].mode_of_operation.eddsa_variant == 0) ? "  Pure   "
+                                                                          : (p_private_key_table_info[i].mode_of_operation.eddsa_variant == 1)   ? "PreHashed"
                                                                                                                                                 : "  ERROR  ");
 #else
         printf("   %s   |", "  None   ");
 #endif
-        printf("  %s |", (pPrivate_key_table_info[i].mode_of_operation.generate_key_AC == 0) ? "  Free   " : (pPrivate_key_table_info[i].mode_of_operation.generate_key_AC == 1) ? "  Host   "
+        printf("  %s |", (p_private_key_table_info[i].mode_of_operation.generate_key_ac == 0) ? "  Free   " : (p_private_key_table_info[i].mode_of_operation.generate_key_ac == 1) ? "  Host   "
                                                                                                                                                                                  : "Forbidden");
-        printf("    %s    |", (pPrivate_key_table_info[i].mode_of_operation.sig_gen_over_external_data == 0 &&
-                               pPrivate_key_table_info[i].mode_of_operation.sig_gen_over_internal_external_data == 0)
+        printf("    %s    |", (p_private_key_table_info[i].mode_of_operation.sig_gen_over_external_data == 0 &&
+                               p_private_key_table_info[i].mode_of_operation.sig_gen_over_internal_external_data == 0)
                                   ? "."
                                   : "x");
-        printf("         %s", (pPrivate_key_table_info[i].mode_of_operation.key_establishment == 0) ? "." : "x");
+        printf("         %s", (p_private_key_table_info[i].mode_of_operation.key_establishment == 0) ? "." : "x");
     }
 }
 
@@ -356,7 +356,7 @@ void apps_print_asymmetric_key_table_info(stse_Handler_t *pSTSE) {
 
 /**
  * @brief  Print host key provisioning control fields
- * @param  pSTSE Pointer to STSE handler structure
+ * @param  p_stse Pointer to STSE handler structure
  * @note   Displays host key provisioning control information:
  *         - Change right
  *         - Re-provision capability
@@ -364,11 +364,11 @@ void apps_print_asymmetric_key_table_info(stse_Handler_t *pSTSE) {
  *         - Wrapped anonymous provisioning
  *         - Wrapped/DH derived authentication key slot number
  */
-void apps_print_host_key_provisioning_control_fields(stse_Handler_t *pSTSE) {
+void apps_print_host_key_provisioning_control_fields(stse_handle_t *p_stse) {
     stsafea_host_key_provisioning_ctrl_fields_t provisioning_ctrl_fields;
-    stse_ReturnCode_t ret;
+    stse_return_code_t ret;
 
-    ret = stsafea_query_host_key_provisioning_ctrl_fields(pSTSE, &provisioning_ctrl_fields);
+    ret = stsafea_query_host_key_provisioning_ctrl_fields(p_stse, &provisioning_ctrl_fields);
 
     if (ret != STSE_OK) {
         printf("\n\n\r - " PRINT_RED "stsafea_query_host_key_provisioning_ctrl_fields ERROR : 0x%04X" PRINT_RESET, ret);
@@ -383,13 +383,13 @@ void apps_print_host_key_provisioning_control_fields(stse_Handler_t *pSTSE) {
     printf("     %s      |", (provisioning_ctrl_fields.reprovision == 0) ? "NO " : "YES");
     printf("    %s    |", (provisioning_ctrl_fields.plaintext == 0) ? "NO " : "YES");
     printf("        %s        |", (provisioning_ctrl_fields.wrapped_anonymous == 0) ? "NO " : "YES");
-    printf("            0x%02X            ", provisioning_ctrl_fields.wrapped_or_DH_derived_authentication_key);
+    printf("            0x%02X            ", provisioning_ctrl_fields.wrapped_or_dh_derived_authentication_key);
     printf("\n\r --------------+--------------+-----------+-------------------+----------------------------");
 }
 
 /**
  * @brief  Print generic public key slot configuration flags
- * @param  pSTSE Pointer to STSE handler structure
+ * @param  p_stse Pointer to STSE handler structure
  * @param  slot_number Slot number to query and display
  * @note   Displays configuration information for the specified generic public key slot:
  *         - Change right
@@ -397,14 +397,14 @@ void apps_print_host_key_provisioning_control_fields(stse_Handler_t *pSTSE) {
  *         - Start volatile KEK session capability
  *         - Key presence status
  */
-void apps_print_generic_public_key_slot_configuration_flags(stse_Handler_t *pSTSE, PLAT_UI8 slot_number) {
-    stse_ReturnCode_t ret;
+void apps_print_generic_public_key_slot_configuration_flags(stse_handle_t *p_stse, PLAT_UI8 slot_number) {
+    stse_return_code_t ret;
     PLAT_UI8 generic_public_key_presence;
     stse_ecc_key_type_t generic_public_key_type;
     stsafea_generic_public_key_configuration_flags_t generic_public_key_config;
 
     ret = stsafea_query_generic_public_key_slot_info(
-        pSTSE,
+        p_stse,
         slot_number,
         &generic_public_key_presence,
         &generic_public_key_config,
@@ -446,7 +446,7 @@ void apps_print_hex_buffer(uint8_t *buffer, uint16_t buffer_size) {
 
 /**
  * @brief  Print data partition record table information
- * @param  pSTSE Pointer to STSE handler structure
+ * @param  p_stse Pointer to STSE handler structure
  * @note   Retrieves and displays data storage partition information for each zone:
  *         - Zone ID
  *         - Counter presence flag
@@ -455,15 +455,15 @@ void apps_print_hex_buffer(uint8_t *buffer, uint16_t buffer_size) {
  *         - Update access control and change right
  *         - Current counter value
  */
-void apps_print_data_partition_record_table(stse_Handler_t *pSTSE) {
+void apps_print_data_partition_record_table(stse_handle_t *p_stse) {
     uint8_t i;
-    stse_ReturnCode_t ret;
+    stse_return_code_t ret;
     uint16_t data_partition_record_table_length;
     uint8_t total_zone_count;
 
     /*- Get total partition count */
-    ret = stse_data_storage_get_total_partition_count(
-        pSTSE,
+    ret = stsafea_get_total_partition_count(
+        p_stse,
         &total_zone_count);
     if (ret != STSE_OK) {
         printf("\n\n\r ### stsafe_get_total_partition_count : ERROR 0x%04X", ret);
@@ -472,12 +472,17 @@ void apps_print_data_partition_record_table(stse_Handler_t *pSTSE) {
     }
 
     /*- Allocate data partition table  */
-    stsafea_data_partition_record_t data_partition_record_table[total_zone_count];
+    if (total_zone_count > STSAFEA_MAX_DATA_PARTITIONS) {
+        printf("\n\n\r ### total_zone_count exceeds maximum (%u > %u)", total_zone_count, STSAFEA_MAX_DATA_PARTITIONS);
+        while (1)
+            ;
+    }
+    stsafea_data_partition_record_t data_partition_record_table[STSAFEA_MAX_DATA_PARTITIONS];
 
     /*- Get data partition table  */
-    data_partition_record_table_length = sizeof(data_partition_record_table);
-    ret = stse_data_storage_get_partitioning_table(
-        pSTSE,
+    data_partition_record_table_length = (uint16_t)(total_zone_count * sizeof(stsafea_data_partition_record_t));
+    ret = stsafea_get_data_partitions_configuration(
+        p_stse,
         total_zone_count,
         data_partition_record_table,
         data_partition_record_table_length);
@@ -576,7 +581,7 @@ void apps_print_command_ac_record_table(stse_cmd_authorization_record_t *command
         }
 
         /*- Access conditions (col 3) */
-        switch (command_ac_record_table[i].command_AC) {
+        switch (command_ac_record_table[i].command_ac) {
         case STSE_CMD_AC_NEVER:
             printf(" NEVER  |");
             break;
@@ -714,28 +719,28 @@ uint32_t apps_generate_random_number(void) {
 
 /**
  * @brief  Fill buffer with random data
- * @param  pBuffer Pointer to buffer to fill
+ * @param  p_buffer Pointer to buffer to fill
  * @param  buffer_length Length of the buffer in bytes
  * @note   Each byte is filled with a random value using the platform RNG
  */
-void apps_randomize_buffer(uint8_t *pBuffer, uint16_t buffer_length) {
+void apps_randomize_buffer(uint8_t *p_buffer, uint16_t buffer_length) {
     for (uint16_t i = 0; i < buffer_length; i++) {
-        *(pBuffer + i) = (rng_generate_random_number() & 0xFF);
+        *(p_buffer + i) = (rng_generate_random_number() & 0xFF);
     }
 }
 
 /**
  * @brief  Compare two buffers byte by byte
- * @param  pBuffer1 Pointer to first buffer
- * @param  pBuffer2 Pointer to second buffer
+ * @param  p_buffer1 Pointer to first buffer
+ * @param  p_buffer2 Pointer to second buffer
  * @param  buffers_length Length of buffers to compare in bytes
  * @return 0 if buffers are identical, 1 if any byte differs
  * @note   Compares buffers element by element
  */
-uint8_t apps_compare_buffers(uint8_t *pBuffer1, uint8_t *pBuffer2, uint16_t buffers_length) {
+uint8_t apps_compare_buffers(uint8_t *p_buffer1, uint8_t *p_buffer2, uint16_t buffers_length) {
 
     for (uint16_t i = 0; i < buffers_length; i++) {
-        if (*pBuffer1 != *pBuffer2) {
+        if (*p_buffer1 != *p_buffer2) {
             return 1;
         }
     }
@@ -762,3 +767,51 @@ void apps_process_error(uint32_t err) {
         /* Infinite loop */
     }
 }
+
+#ifdef STSE_CONF_USE_HOST_SESSION
+/**
+ * @brief  Store host keys in platform secure storage and open a host session
+ * @param  p_stse            Pointer to STSE handler structure
+ * @param  p_session         Pointer to the session handler to open
+ * @param  p_host_mac_key    Pointer to host MAC key
+ * @param  p_host_cipher_key Pointer to host cipher key
+ * @return STSE_OK on success ; stse_return_code_t error code otherwise
+ */
+stse_return_code_t apps_open_host_session(stse_handle_t *p_stse,
+                                          stse_session_t *p_session,
+                                          const stse_aes_key_t *p_host_mac_key,
+                                          const stse_aes_key_t *p_host_cipher_key) {
+    stse_return_code_t ret;
+    PLAT_UI32 host_mac_key_idx;
+    PLAT_UI32 host_cipher_key_idx;
+
+    /* - Store host MAC key in platform secure storage */
+    ret = stse_platform_store_aes_key((PLAT_UI8 *)p_host_mac_key->key,
+                                      (p_host_mac_key->type == STSE_AES_256_KT) ? STSE_AES_256_KEY_SIZE : STSE_AES_128_KEY_SIZE,
+                                      STSE_AES_KEY_USAGE_MAC,
+                                      &host_mac_key_idx);
+    if (ret != STSE_OK) {
+        return ret;
+    }
+
+    /* - Store host cipher key in platform secure storage */
+    ret = stse_platform_store_aes_key((PLAT_UI8 *)p_host_cipher_key->key,
+                                      (p_host_cipher_key->type == STSE_AES_256_KT) ? STSE_AES_256_KEY_SIZE : STSE_AES_128_KEY_SIZE,
+                                      STSE_AES_KEY_USAGE_CIPHER,
+                                      &host_cipher_key_idx);
+    if (ret != STSE_OK) {
+        stse_platform_delete_aes_key(host_mac_key_idx);
+        return ret;
+    }
+
+    /* - Open host session using stored key indexes */
+    ret = stsafea_open_host_session_from_idx(p_stse, p_session, host_mac_key_idx, host_cipher_key_idx);
+    if (ret != STSE_OK) {
+        stse_platform_delete_aes_key(host_mac_key_idx);
+        stse_platform_delete_aes_key(host_cipher_key_idx);
+    }
+
+    return ret;
+}
+#endif /* STSE_CONF_USE_HOST_SESSION */
+
